@@ -1,0 +1,53 @@
+=== Crater to InvoiceShelf Migration ===
+
+Source DB: crater_temp
+Target DB: invoiceshelf
+
+[1/8] Migrating Companies...
+   Migrated 1 companies
+
+[2/8] Migrating Users...
+   Migrated 2 users
+
+[2b/8] Migrating User-Company relationships...
+   Migrated 2 user-company relationships
+
+[3/8] Migrating Customers (Patients)...
+   Migrated 1399 customers, skipped 0
+
+[4/8] Migrating Addresses...
+   Migrated 1418 addresses
+
+[5/8] Migrating Items...
+   Migrated 21 items
+
+[6/8] Migrating Invoices...
+   Hash collision detected for invoice INV-000987, regenerating...
+   Hash collision detected for invoice INV-001134, regenerating...
+   Hash collision detected for invoice INV-001182, regenerating...
+   Hash collision detected for invoice INV-001294, regenerating...
+   Migrated 1333 invoices
+
+[7/8] Migrating Invoice Items...
+   Migrated 1552 invoice items
+
+[8/8] Migrating Appointments...
+   Migrated 0 appointments
+
+=== Migration Complete! ===
+
+Summary:
+- Companies: 1
+- Users: 2
+- Customers: 1399 (skipped: 0)
+- Addresses: 1418
+- Items: 21
+- Invoices: 1333
+- Invoice Items: 1552
+- Appointments: 0
+
+Next steps:
+1. Verify data in InvoiceShelf
+2. Test invoice PDF generation
+3. Test appointment creation
+4. Drop crater_temp database when satisfied
