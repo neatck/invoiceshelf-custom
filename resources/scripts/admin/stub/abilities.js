@@ -50,6 +50,12 @@ export default {
   CREATE_EXPENSE: 'create-expense',
   DELETE_EXPENSE: 'delete-expense',
   EDIT_EXPENSE: 'edit-expense',
+
+  // Appointments
+  CREATE_APPOINTMENT: 'create-appointment',
+  DELETE_APPOINTMENT: 'delete-appointment',
+  EDIT_APPOINTMENT: 'edit-appointment',
+  VIEW_APPOINTMENT: 'view-appointment',
   VIEW_EXPENSE: 'view-expense',
 
   // Custom fields

@@ -116,7 +116,8 @@ class InvoicesRequest extends FormRequest
         $company_currency = CompanySetting::getSetting('currency', $this->header('company'));
         $current_currency = $this->currency_id;
         $exchange_rate = $company_currency != $current_currency ? $this->exchange_rate : 1;
-        $currency = Customer::find($this->customer_id)->currency_id;
+        $customer = Customer::find($this->customer_id);
+        $currency = $customer->currency_id;
 
         return collect($this->except('items', 'taxes'))
             ->merge([
@@ -136,6 +137,14 @@ class InvoicesRequest extends FormRequest
                 'base_tax' => $this->tax * $exchange_rate,
                 'base_due_amount' => $this->total * $exchange_rate,
                 'currency_id' => $currency,
+                // Patient information snapshot
+                'customer_age' => $customer->age,
+                'customer_next_of_kin' => $customer->next_of_kin,
+                'customer_next_of_kin_phone' => $customer->next_of_kin_phone,
+                'customer_diagnosis' => $customer->diagnosis,
+                'customer_treatment' => $customer->treatment,
+                'customer_attended_to_by' => $customer->attended_to_by,
+                'customer_review_date' => $customer->review_date,
             ])
             ->toArray();
     }

@@ -66,7 +66,7 @@
           <div class="flex-1 h-0 pt-5 pb-4 overflow-y-auto">
             <div class="flex items-center shrink-0 px-4 mb-10">
               <MainLogo
-                class="block h-auto max-w-full w-36 text-primary-400"
+                class="block h-auto max-w-full w-27 text-primary-400"
                 alt="InvoiceShelf Logo"
               />
             </div>

@@ -11,6 +11,7 @@ use App\Models\Note;
 use App\Models\Payment;
 use App\Models\RecurringInvoice;
 use App\Models\TaxType;
+use App\Models\Appointment;
 
 return [
     /*
@@ -325,6 +326,16 @@ return [
             'owner_only' => false,
             'ability' => 'view-customer',
             'model' => Customer::class,
+        ],
+        [
+            'title' => 'navigation.appointments',
+            'group' => 1,
+            'link' => '/admin/appointments',
+            'icon' => 'CalendarIcon',
+            'name' => 'Appointments',
+            'owner_only' => false,
+            'ability' => 'view-appointment',
+            'model' => Appointment::class,
         ],
         [
             'title' => 'navigation.items',

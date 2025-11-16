@@ -7,8 +7,10 @@ use App\Http\Controllers\V1\Admin\Backup\BackupsController;
 use App\Http\Controllers\V1\Admin\Backup\DownloadBackupController;
 use App\Http\Controllers\V1\Admin\Company\CompaniesController;
 use App\Http\Controllers\V1\Admin\Company\CompanyController as AdminCompanyController;
+use App\Http\Controllers\V1\Admin\Appointment\AppointmentsController;
 use App\Http\Controllers\V1\Admin\Customer\CustomersController;
 use App\Http\Controllers\V1\Admin\Customer\CustomerStatsController;
+use App\Http\Controllers\V1\Admin\Customer\UpdatePatientInfoController;
 use App\Http\Controllers\V1\Admin\CustomField\CustomFieldsController;
 use App\Http\Controllers\V1\Admin\Dashboard\DashboardController;
 use App\Http\Controllers\V1\Admin\Estimate\ChangeEstimateStatusController;
@@ -247,7 +249,20 @@ Route::prefix('/v1')->group(function () {
 
             Route::get('customers/{customer}/stats', CustomerStatsController::class);
 
+            Route::patch('customers/{customer}/patient-info', UpdatePatientInfoController::class);
+
             Route::resource('customers', CustomersController::class);
+
+            // Appointments
+            // ----------------------------------
+
+            Route::get('/appointments/available-slots', [AppointmentsController::class, 'getAvailableSlots']);
+
+            Route::get('/appointments/dashboard-stats', [AppointmentsController::class, 'getDashboardStats']);
+
+            Route::patch('/appointments/{appointment}/status', [AppointmentsController::class, 'updateStatus']);
+
+            Route::resource('appointments', AppointmentsController::class);
 
             // Items
             // ----------------------------------

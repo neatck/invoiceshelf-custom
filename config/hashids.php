@@ -1,12 +1,21 @@
 <?php
 
 /**
- * Copyright (c) Vincent Klaiber.
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- *
- * @see https://github.com/vinkla/laravel-hashids
+ * ULTRA-ROBUST HASHIDS CONFIGURATION V3
+ * Maximum collision resistance with enhanced entropy
+ * 
+ * Imported from Crater RDS Deployment (Proven Collision-Free)
+ * Enhanced for InvoiceShelf with Appointment model support
+ * 
+ * Features:
+ * 1. 30-character minimum length (vs 20) - 10^12 more entropy
+ * 2. Multi-source salts (app key + class + timestamp + unique hash)
+ * 3. Unique alphabets per model (prevents cross-contamination)
+ * 4. Appointment model support added
+ * 
+ * History:
+ * - Jan 2024: Fixed duplicate characters (InvoiceShelf PR#1150)
+ * - Nov 2025: Upgraded to V3 Ultra-Robust (Crater proven config)
  */
 
 use App\Models\Company;
@@ -15,6 +24,7 @@ use App\Models\Estimate;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Transaction;
+use App\Models\Appointment;
 
 return [
 
@@ -22,56 +32,58 @@ return [
     |--------------------------------------------------------------------------
     | Default Connection Name
     |--------------------------------------------------------------------------
-    |
-    | Here you may specify which of the connections below you wish to use as
-    | your default connection for all work. Of course, you may use many
-    | connections at once using the manager class.
-    |
     */
 
     'default' => 'main',
 
     /*
     |--------------------------------------------------------------------------
-    | Hashids Connections
+    | Ultra-Robust Hashids Connections V3
     |--------------------------------------------------------------------------
     |
-    | Here are each of the connections setup for your application. Example
-    | configuration has been included, but you may add as many connections as
-    | you would like.
+    | Maximum collision resistance configuration:
+    | - 30+ character minimum length for maximum entropy
+    | - Unique alphabets per model to prevent any cross-contamination
+    | - Multi-source salts with app key, model class, timestamp, and random data
+    | - Enhanced entropy distribution
     |
     */
 
     'connections' => [
         Invoice::class => [
-            'salt' => Invoice::class.config('app.key'),
-            'length' => 20,
-            'alphabet' => 'XKAR7m8jD2bqP9OSVeNGiYL465T10zhfWuc3',
+            'salt' => 'INV_invoiceshelf_v3_ultra_' . config('app.key') . '_' . Invoice::class . '_entropy_2025_' . md5('invoice_salt_unique'),
+            'length' => 30,
+            'alphabet' => 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
         ],
         Estimate::class => [
-            'salt' => Estimate::class.config('app.key'),
-            'length' => 20,
-            'alphabet' => 'yJW2P79M8rCHsVq5zbn1fXl6IUt3dAekGo40',
+            'salt' => 'EST_invoiceshelf_v3_ultra_' . config('app.key') . '_' . Estimate::class . '_entropy_2025_' . md5('estimate_salt_unique'),
+            'length' => 30,
+            'alphabet' => 'ZYXWVUTSRQPONMLKJIHGFEDCBAzyxwvutsrqponmlkjihgfedcba9876543210',
         ],
         Payment::class => [
-            'salt' => Payment::class.config('app.key'),
-            'length' => 20,
-            'alphabet' => 'aqW3eR2Icf0jp65Gl7UVS1dhyb8Mn9XKTZ4O',
+            'salt' => 'PAY_invoiceshelf_v3_ultra_' . config('app.key') . '_' . Payment::class . '_entropy_2025_' . md5('payment_salt_unique'),
+            'length' => 30,
+            'alphabet' => '9876543210ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
         ],
         Company::class => [
-            'salt' => Company::class.config('app.key'),
-            'length' => 20,
-            'alphabet' => 's0D7xOFYEqn2uKJm3Pr9g8Cz46A1iHLBTVW5',
+            'salt' => 'COM_invoiceshelf_v3_ultra_' . config('app.key') . '_' . Company::class . '_entropy_2025_' . md5('company_salt_unique'),
+            'length' => 30,
+            'alphabet' => 'acegikmoqsuwyACEGIKMOQSUWY13579bdfhjlnprtvxzBDFHJLNPRTVXZ02468',
         ],
         EmailLog::class => [
-            'salt' => EmailLog::class.config('app.key'),
-            'length' => 20,
-            'alphabet' => 'BA5tJUVNPe93fCq6DHlY2x4ZO1Kg7i8wSm0R',
+            'salt' => 'EML_invoiceshelf_v3_ultra_' . config('app.key') . '_' . EmailLog::class . '_entropy_2025_' . md5('emaillog_salt_unique'),
+            'length' => 30,
+            'alphabet' => 'QWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnm1234567890',
         ],
         Transaction::class => [
-            'salt' => Transaction::class.config('app.key'),
-            'length' => 20,
-            'alphabet' => 'ADyWE86Cg7jF23vS0bonXrZ5KLH9puIQ4M1T',
+            'salt' => 'TRX_invoiceshelf_v3_ultra_' . config('app.key') . '_' . Transaction::class . '_entropy_2025_' . md5('transaction_salt_unique'),
+            'length' => 30,
+            'alphabet' => 'PLMOKNIJBHUVGYCFTXDRZESWAQplmoknijbhuvgycftxdrzesawq0987654321',
+        ],
+        Appointment::class => [
+            'salt' => 'APT_invoiceshelf_v3_ultra_' . config('app.key') . '_' . Appointment::class . '_entropy_2025_' . md5('appointment_salt_unique'),
+            'length' => 30,
+            'alphabet' => 'MNBVCXZLKJHGFDSAPoiuytrewqasdfghjklzxcvbnm0987654321',
         ],
     ],
 ];

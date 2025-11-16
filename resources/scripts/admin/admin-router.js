@@ -67,6 +67,11 @@ const ItemCreate = () => import('@/scripts/admin/views/items/Create.vue')
 const ExpensesIndex = () => import('@/scripts/admin/views/expenses/Index.vue')
 const ExpenseCreate = () => import('@/scripts/admin/views/expenses/Create.vue')
 
+// Appointments
+const AppointmentIndex = () => import('@/scripts/admin/views/appointments/Index.vue')
+const AppointmentCreate = () => import('@/scripts/admin/views/appointments/Create.vue')
+const AppointmentView = () => import('@/scripts/admin/views/appointments/View.vue')
+
 // Users
 const UserIndex = () => import('@/scripts/admin/views/users/Index.vue')
 const UserCreate = () => import('@/scripts/admin/views/users/Create.vue')
@@ -368,6 +373,32 @@ export default [
         name: 'expenses.create',
         meta: { ability: abilities.CREATE_EXPENSE },
         component: ExpenseCreate,
+      },
+
+      // Appointments
+      {
+        path: 'appointments',
+        name: 'appointments.index',
+        meta: { ability: abilities.VIEW_APPOINTMENT },
+        component: AppointmentIndex,
+      },
+      {
+        path: 'appointments/create',
+        name: 'appointments.create',
+        meta: { ability: abilities.CREATE_APPOINTMENT },
+        component: AppointmentCreate,
+      },
+      {
+        path: 'appointments/:id/view',
+        name: 'appointments.view',
+        meta: { ability: abilities.VIEW_APPOINTMENT },
+        component: AppointmentView,
+      },
+      {
+        path: 'appointments/:id/edit',
+        name: 'appointments.edit',
+        meta: { ability: abilities.EDIT_APPOINTMENT },
+        component: AppointmentCreate,
       },
       {
         path: 'expenses/:id/edit',

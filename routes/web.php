@@ -92,6 +92,10 @@ Route::middleware('pdf-auth')->group(function () {
     // payment pdf
     // -------------------------------------------------
     Route::get('/payments/pdf/{payment:unique_hash}', PaymentPdfController::class);
+
+    // appointment pdf
+    // -------------------------------------------------
+    Route::get('/appointments/pdf/{appointment:unique_hash}', \App\Http\Controllers\V1\PDF\AppointmentPdfController::class);
 });
 
 // customer pdf endpoints for invoice, estimate and Payment

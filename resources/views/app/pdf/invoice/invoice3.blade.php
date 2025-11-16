@@ -108,6 +108,80 @@
             word-wrap: break-word;
         }
 
+        /* -- Patient Information -- */
+
+        .patient-info-container {
+            clear: both;
+            margin-top: 30px;
+            padding: 20px 30px;
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+        }
+
+        .patient-info-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #374151;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #6366f1;
+        }
+
+        .patient-info-grid {
+            display: table;
+            width: 100%;
+        }
+
+        .patient-info-row {
+            display: table-row;
+        }
+
+        .patient-info-cell {
+            display: table-cell;
+            padding: 8px 15px;
+            width: 50%;
+            vertical-align: top;
+        }
+
+        .patient-info-label {
+            font-size: 10px;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+
+        .patient-info-value {
+            font-size: 12px;
+            color: #111827;
+            font-weight: 500;
+        }
+
+        .patient-info-full-width {
+            display: block;
+            padding: 8px 15px;
+            width: 100%;
+        }
+
+        /* -- Bible Verse Footer -- */
+
+        .bible-verse-footer {
+            position: fixed;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-style: italic;
+            font-size: 10px;
+            color: #666;
+            padding: 10px 30px;
+            border-top: 1px solid #E8E8E8;
+            background-color: #f9f9f9;
+            page-break-inside: avoid;
+            margin: 0 20px;
+        }
+
         /*  -- Estimate Details -- */
 
         .invoice-details-container {
@@ -371,6 +445,78 @@
             <div style="clear: both;"></div>
         </div>
 
+        {{-- Patient Information Section --}}
+        @if ($invoice->customer_age || $invoice->customer_next_of_kin || $invoice->customer_diagnosis || $invoice->customer_treatment)
+            <div class="patient-info-container">
+                <div class="patient-info-title">
+                    @lang('pdf_patient_information')
+                </div>
+                <div class="patient-info-grid">
+                    @if ($invoice->customer_age || $invoice->customer_next_of_kin)
+                        <div class="patient-info-row">
+                            @if ($invoice->customer_age)
+                                <div class="patient-info-cell">
+                                    <div class="patient-info-label">@lang('pdf_age')</div>
+                                    <div class="patient-info-value">{{ $invoice->customer_age }}</div>
+                                </div>
+                            @endif
+                            @if ($invoice->customer_next_of_kin)
+                                <div class="patient-info-cell">
+                                    <div class="patient-info-label">@lang('pdf_next_of_kin')</div>
+                                    <div class="patient-info-value">{{ $invoice->customer_next_of_kin }}</div>
+                                </div>
+                            @endif
+                        </div>
+                    @endif
+
+                    @if ($invoice->customer_next_of_kin_phone || $invoice->customer_attended_to_by)
+                        <div class="patient-info-row">
+                            @if ($invoice->customer_next_of_kin_phone)
+                                <div class="patient-info-cell">
+                                    <div class="patient-info-label">@lang('pdf_next_of_kin_phone')</div>
+                                    <div class="patient-info-value">{{ $invoice->customer_next_of_kin_phone }}</div>
+                                </div>
+                            @endif
+                            @if ($invoice->customer_attended_to_by)
+                                <div class="patient-info-cell">
+                                    <div class="patient-info-label">@lang('pdf_attended_to_by')</div>
+                                    <div class="patient-info-value">{{ $invoice->customer_attended_to_by }}</div>
+                                </div>
+                            @endif
+                        </div>
+                    @endif
+
+                    @if ($invoice->customer_review_date)
+                        <div class="patient-info-row">
+                            <div class="patient-info-cell">
+                                <div class="patient-info-label">@lang('pdf_review_date')</div>
+                                <div class="patient-info-value">
+                                    {{ \Carbon\Carbon::parse($invoice->customer_review_date)->format('F d, Y') }}
+                                </div>
+                            </div>
+                            <div class="patient-info-cell">
+                                <!-- Empty cell for layout -->
+                            </div>
+                        </div>
+                    @endif
+
+                    @if ($invoice->customer_diagnosis)
+                        <div class="patient-info-full-width">
+                            <div class="patient-info-label">@lang('pdf_diagnosis')</div>
+                            <div class="patient-info-value">{{ $invoice->customer_diagnosis }}</div>
+                        </div>
+                    @endif
+
+                    @if ($invoice->customer_treatment)
+                        <div class="patient-info-full-width">
+                            <div class="patient-info-label">@lang('pdf_treatment')</div>
+                            <div class="patient-info-value">{{ $invoice->customer_treatment }}</div>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        @endif
+
         @include('app.pdf.invoice.partials.table')
 
         <div class="notes">
@@ -382,6 +528,11 @@
                 {!! $notes !!}
             @endif
         </div>
+    </div>
+
+    <!-- Bible Verse Footer -->
+    <div class="bible-verse-footer">
+        <em>God's grace is sufficient to heal you! - 2 Cor 12:9 ESV</em>
     </div>
 </body>
 

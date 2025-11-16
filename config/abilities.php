@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Appointment;
 use App\Models\Customer;
 use App\Models\CustomField;
 use App\Models\Estimate;
@@ -58,6 +59,39 @@ return [
             'model' => Customer::class,
             'depends_on' => [
                 'view-customer',
+            ],
+        ],
+
+        // Appointment
+        [
+            'name' => 'view appointment',
+            'ability' => 'view-appointment',
+            'model' => Appointment::class,
+        ],
+        [
+            'name' => 'create appointment',
+            'ability' => 'create-appointment',
+            'model' => Appointment::class,
+            'depends_on' => [
+                'view-appointment',
+                'view-customer',
+            ],
+        ],
+        [
+            'name' => 'edit appointment',
+            'ability' => 'edit-appointment',
+            'model' => Appointment::class,
+            'depends_on' => [
+                'view-appointment',
+                'view-customer',
+            ],
+        ],
+        [
+            'name' => 'delete appointment',
+            'ability' => 'delete-appointment',
+            'model' => Appointment::class,
+            'depends_on' => [
+                'view-appointment',
             ],
         ],
 

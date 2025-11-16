@@ -47,6 +47,7 @@ class Customer extends Authenticatable implements HasMedia
     {
         return [
             'enable_portal' => 'boolean',
+            'review_date' => 'date',
         ];
     }
 
@@ -55,6 +56,17 @@ class Customer extends Authenticatable implements HasMedia
         $dateFormat = CompanySetting::getSetting('carbon_date_format', $this->company_id);
 
         return Carbon::parse($this->created_at)->translatedFormat($dateFormat);
+    }
+
+    public function getFormattedReviewDateAttribute()
+    {
+        if (!$this->review_date) {
+            return null;
+        }
+
+        $dateFormat = CompanySetting::getSetting('carbon_date_format', $this->company_id);
+
+        return Carbon::parse($this->review_date)->translatedFormat($dateFormat);
     }
 
     public function setPasswordAttribute($value)
@@ -92,6 +104,11 @@ class Customer extends Authenticatable implements HasMedia
     public function recurringInvoices(): HasMany
     {
         return $this->hasMany(RecurringInvoice::class);
+    }
+
+    public function appointments(): HasMany
+    {
+        return $this->hasMany(Appointment::class);
     }
 
     public function currency(): BelongsTo
