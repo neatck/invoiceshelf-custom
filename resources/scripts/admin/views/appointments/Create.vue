@@ -155,7 +155,7 @@
               :error="v$.formData.duration_minutes.$error && v$.formData.duration_minutes.$errors[0].$message"
               :content-loading="isFetchingInitialData"
             >
-              <BaseSelect
+              <BaseMultiselect
                 v-model="formData.duration_minutes"
                 :options="durationOptions"
                 :invalid="v$.formData.duration_minutes.$error"
@@ -164,6 +164,7 @@
                 :show-labels="false"
                 label="text"
                 track-by="value"
+                value-prop="value"
               />
             </BaseInputGroup>
 
@@ -173,7 +174,7 @@
               required
               :content-loading="isFetchingInitialData"
             >
-              <BaseSelect
+              <BaseMultiselect
                 v-model="formData.status"
                 :options="statusOptions"
                 :content-loading="isFetchingInitialData"
@@ -181,6 +182,7 @@
                 :show-labels="false"
                 label="text"
                 track-by="value"
+                value-prop="value"
               />
             </BaseInputGroup>
           </BaseInputGrid>
@@ -332,7 +334,7 @@
               :label="$t('appointments.reminder_hours_before')"
               :content-loading="isFetchingInitialData"
             >
-              <BaseSelect
+              <BaseMultiselect
                 v-model="formData.reminder_hours_before"
                 :options="reminderOptions"
                 :content-loading="isFetchingInitialData"
@@ -340,6 +342,7 @@
                 :show-labels="false"
                 label="text"
                 track-by="value"
+                value-prop="value"
               />
             </BaseInputGroup>
           </BaseInputGrid>
