@@ -129,7 +129,7 @@
               :error="timeSlotError"
               :content-loading="isFetchingInitialData || loadingSlots"
             >
-              <BaseSelect
+              <BaseMultiselect
                 v-model="appointmentTime"
                 :options="availableTimeSlots"
                 :invalid="!!timeSlotError"
@@ -140,6 +140,7 @@
                 :disabled="!appointmentDate || loadingSlots"
                 label="text"
                 track-by="value"
+                value-prop="value"
                 @update:modelValue="onTimeChange"
               />
               <p v-if="loadingSlots" class="mt-1 text-sm text-gray-500">
