@@ -45,7 +45,8 @@
       >
         <div
           v-if="
-            usersStore.userList.length < 1 && usersStore.customerList.length < 1
+            (!usersStore.userList || usersStore.userList.length < 1) && 
+            (!usersStore.customerList || usersStore.customerList.length < 1)
           "
           class="
             flex
@@ -107,7 +108,7 @@
             </div>
           </div>
 
-          <div v-if="usersStore.userList.length > 0" class="mt-2">
+          <div v-if="usersStore.userList && usersStore.userList.length > 0" class="mt-2">
             <label
               class="text-sm text-gray-400 mb-2 block px-2 mb-0.5 uppercase"
             >
