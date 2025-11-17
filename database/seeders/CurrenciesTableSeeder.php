@@ -14,6 +14,14 @@ class CurrenciesTableSeeder extends Seeder
     {
         $currencies = [
             [
+                'name' => 'Ugandan Shilling',
+                'code' => 'UGX',
+                'symbol' => 'UGX ',
+                'precision' => '0',
+                'thousand_separator' => ',',
+                'decimal_separator' => '.',
+            ],
+            [
                 'name' => 'US Dollar',
                 'code' => 'USD',
                 'symbol' => '$',
@@ -85,14 +93,6 @@ class CurrenciesTableSeeder extends Seeder
                 'code' => 'KES',
                 'symbol' => 'KSh ',
                 'precision' => '2',
-                'thousand_separator' => ',',
-                'decimal_separator' => '.',
-            ],
-            [
-                'name' => 'Ugandan Shilling',
-                'code' => 'UGX',
-                'symbol' => 'UGX ',
-                'precision' => '0',
                 'thousand_separator' => ',',
                 'decimal_separator' => '.',
             ],
