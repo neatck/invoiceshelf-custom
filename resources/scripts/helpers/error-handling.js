@@ -110,7 +110,7 @@ export const showError = (error) => {
       break
 
     case 'The payment number has already been taken.':
-      showToaster('errors.estimate_number_used')
+      showToaster('errors.payment_number_used')
       break
 
     case 'The invoice number has already been taken.':
