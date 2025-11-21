@@ -94,9 +94,23 @@ class SerialNumberFormatter
         }
         $this->setNextNumbers();
 
-        $serialNumber = $this->generateSerialNumber(
-            $format
-        );
+        $attempts = 0;
+        do {
+            $serialNumber = $this->generateSerialNumber(
+                $format
+            );
+
+            $exists = $this->model::where('company_id', $companyId)
+                ->where($modelName.'_number', $serialNumber)
+                ->exists();
+
+            if ($exists) {
+                $this->nextSequenceNumber++;
+                $this->nextCustomerSequenceNumber++;
+            }
+            
+            $attempts++;
+        } while ($exists && $attempts < 100);
 
         return $serialNumber;
     }
