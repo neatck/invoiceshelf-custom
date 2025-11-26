@@ -13,6 +13,10 @@ class ImageUtils
      */
     public static function toBase64Src($path)
     {
+        if (!File::exists($path)) {
+            return '';
+        }
+
         return sprintf('data:%s;base64,%s', File::mimeType($path), base64_encode(File::get($path)));
     }
 }
