@@ -9,8 +9,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\HasApiTokens;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 use Spatie\MediaLibrary\HasMedia;
@@ -24,6 +26,7 @@ class Customer extends Authenticatable implements HasMedia
     use HasRolesAndAbilities;
     use InteractsWithMedia;
     use Notifiable;
+    use SoftDeletes;
 
     protected $guarded = [
         'id',
@@ -201,64 +204,68 @@ class Customer extends Authenticatable implements HasMedia
 
     public static function createCustomer($request)
     {
-        $customer = Customer::create($request->getCustomerPayload());
+        return DB::transaction(function () use ($request) {
+            $customer = Customer::create($request->getCustomerPayload());
 
-        if ($request->shipping) {
-            if ($request->hasAddress($request->shipping)) {
-                $customer->addresses()->create($request->getShippingAddress());
+            if ($request->shipping) {
+                if ($request->hasAddress($request->shipping)) {
+                    $customer->addresses()->create($request->getShippingAddress());
+                }
             }
-        }
 
-        if ($request->billing) {
-            if ($request->hasAddress($request->billing)) {
-                $customer->addresses()->create($request->getBillingAddress());
+            if ($request->billing) {
+                if ($request->hasAddress($request->billing)) {
+                    $customer->addresses()->create($request->getBillingAddress());
+                }
             }
-        }
 
-        $customFields = $request->customFields;
+            $customFields = $request->customFields;
 
-        if ($customFields) {
-            $customer->addCustomFields($customFields);
-        }
+            if ($customFields) {
+                $customer->addCustomFields($customFields);
+            }
 
-        $customer = Customer::with('billingAddress', 'shippingAddress', 'fields')->find($customer->id);
+            $customer = Customer::with('billingAddress', 'shippingAddress', 'fields')->find($customer->id);
 
-        return $customer;
+            return $customer;
+        });
     }
 
     public static function updateCustomer($request, $customer)
     {
-        $condition = $customer->estimates()->exists() || $customer->invoices()->exists() || $customer->payments()->exists() || $customer->recurringInvoices()->exists();
+        return DB::transaction(function () use ($request, $customer) {
+            $condition = $customer->estimates()->exists() || $customer->invoices()->exists() || $customer->payments()->exists() || $customer->recurringInvoices()->exists();
 
-        if (($customer->currency_id !== $request->currency_id) && $condition) {
-            return 'you_cannot_edit_currency';
-        }
-
-        $customer->update($request->getCustomerPayload());
-
-        $customer->addresses()->delete();
-
-        if ($request->shipping) {
-            if ($request->hasAddress($request->shipping)) {
-                $customer->addresses()->create($request->getShippingAddress());
+            if (($customer->currency_id !== $request->currency_id) && $condition) {
+                return 'you_cannot_edit_currency';
             }
-        }
 
-        if ($request->billing) {
-            if ($request->hasAddress($request->billing)) {
-                $customer->addresses()->create($request->getBillingAddress());
+            $customer->update($request->getCustomerPayload());
+
+            $customer->addresses()->delete();
+
+            if ($request->shipping) {
+                if ($request->hasAddress($request->shipping)) {
+                    $customer->addresses()->create($request->getShippingAddress());
+                }
             }
-        }
 
-        $customFields = $request->customFields;
+            if ($request->billing) {
+                if ($request->hasAddress($request->billing)) {
+                    $customer->addresses()->create($request->getBillingAddress());
+                }
+            }
 
-        if ($customFields) {
-            $customer->updateCustomFields($customFields);
-        }
+            $customFields = $request->customFields;
 
-        $customer = Customer::with('billingAddress', 'shippingAddress', 'fields')->find($customer->id);
+            if ($customFields) {
+                $customer->updateCustomFields($customFields);
+            }
 
-        return $customer;
+            $customer = Customer::with('billingAddress', 'shippingAddress', 'fields')->find($customer->id);
+
+            return $customer;
+        });
     }
 
     public function scopePaginateData($query, $limit)

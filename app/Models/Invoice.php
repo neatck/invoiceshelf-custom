@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 use Nwidart\Modules\Facades\Module;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
@@ -26,6 +28,7 @@ class Invoice extends Model implements HasMedia
     use HasCustomFieldsTrait;
     use HasFactory;
     use InteractsWithMedia;
+    use SoftDeletes;
 
     public const STATUS_DRAFT = 'DRAFT';
 
@@ -313,129 +316,133 @@ class Invoice extends Model implements HasMedia
 
     public static function createInvoice($request)
     {
-        $data = $request->getInvoicePayload();
+        return DB::transaction(function () use ($request) {
+            $data = $request->getInvoicePayload();
 
-        if ($request->has('invoiceSend')) {
-            $data['status'] = Invoice::STATUS_SENT;
-        }
+            if ($request->has('invoiceSend')) {
+                $data['status'] = Invoice::STATUS_SENT;
+            }
 
-        $invoice = Invoice::create($data);
+            $invoice = Invoice::create($data);
 
-        $serial = (new SerialNumberFormatter)
-            ->setModel($invoice)
-            ->setCompany($invoice->company_id)
-            ->setCustomer($invoice->customer_id)
-            ->setNextNumbers();
+            $serial = (new SerialNumberFormatter)
+                ->setModel($invoice)
+                ->setCompany($invoice->company_id)
+                ->setCustomer($invoice->customer_id)
+                ->setNextNumbers();
 
-        $invoice->sequence_number = $serial->nextSequenceNumber;
-        $invoice->customer_sequence_number = $serial->nextCustomerSequenceNumber;
-        $invoice->unique_hash = Hashids::connection(Invoice::class)->encode($invoice->id);
-        $invoice->save();
+            $invoice->sequence_number = $serial->nextSequenceNumber;
+            $invoice->customer_sequence_number = $serial->nextCustomerSequenceNumber;
+            $invoice->unique_hash = Hashids::connection(Invoice::class)->encode($invoice->id);
+            $invoice->save();
 
-        self::createItems($invoice, $request->items);
+            self::createItems($invoice, $request->items);
 
-        $company_currency = CompanySetting::getSetting('currency', $request->header('company'));
+            $company_currency = CompanySetting::getSetting('currency', $request->header('company'));
 
-        if ((string) $data['currency_id'] !== $company_currency) {
-            ExchangeRateLog::addExchangeRateLog($invoice);
-        }
+            if ((string) $data['currency_id'] !== $company_currency) {
+                ExchangeRateLog::addExchangeRateLog($invoice);
+            }
 
-        if ($request->has('taxes') && (! empty($request->taxes))) {
-            self::createTaxes($invoice, $request->taxes);
-        }
+            if ($request->has('taxes') && (! empty($request->taxes))) {
+                self::createTaxes($invoice, $request->taxes);
+            }
 
-        if ($request->customFields) {
-            $invoice->addCustomFields($request->customFields);
-        }
+            if ($request->customFields) {
+                $invoice->addCustomFields($request->customFields);
+            }
 
-        $invoice = Invoice::with([
-            'items',
-            'items.fields',
-            'items.fields.customField',
-            'customer',
-            'taxes',
-        ])
-            ->find($invoice->id);
+            $invoice = Invoice::with([
+                'items',
+                'items.fields',
+                'items.fields.customField',
+                'customer',
+                'taxes',
+            ])
+                ->find($invoice->id);
 
-        return $invoice;
+            return $invoice;
+        });
     }
 
     public function updateInvoice($request)
     {
-        $serial = (new SerialNumberFormatter)
-            ->setModel($this)
-            ->setCompany($this->company_id)
-            ->setCustomer($request->customer_id)
-            ->setModelObject($this->id)
-            ->setNextNumbers();
+        return DB::transaction(function () use ($request) {
+            $serial = (new SerialNumberFormatter)
+                ->setModel($this)
+                ->setCompany($this->company_id)
+                ->setCustomer($request->customer_id)
+                ->setModelObject($this->id)
+                ->setNextNumbers();
 
-        $data = $request->getInvoicePayload();
-        $oldTotal = $this->total;
+            $data = $request->getInvoicePayload();
+            $oldTotal = $this->total;
 
-        $total_paid_amount = $this->total - $this->due_amount;
+            $total_paid_amount = $this->total - $this->due_amount;
 
-        if ($total_paid_amount > 0 && $this->customer_id !== $request->customer_id) {
-            return 'customer_cannot_be_changed_after_payment_is_added';
-        }
+            if ($total_paid_amount > 0 && $this->customer_id !== $request->customer_id) {
+                return 'customer_cannot_be_changed_after_payment_is_added';
+            }
 
-        if ($request->total >= 0 && $request->total < $total_paid_amount) {
-            return 'total_invoice_amount_must_be_more_than_paid_amount';
-        }
+            if ($request->total >= 0 && $request->total < $total_paid_amount) {
+                return 'total_invoice_amount_must_be_more_than_paid_amount';
+            }
 
-        if ($oldTotal != $request->total) {
-            $oldTotal = (int) round($request->total) - (int) $oldTotal;
-        } else {
-            $oldTotal = 0;
-        }
+            if ($oldTotal != $request->total) {
+                $oldTotal = (int) round($request->total) - (int) $oldTotal;
+            } else {
+                $oldTotal = 0;
+            }
 
-        $data['due_amount'] = ($this->due_amount + $oldTotal);
-        $data['base_due_amount'] = $data['due_amount'] * $data['exchange_rate'];
-        $data['customer_sequence_number'] = $serial->nextCustomerSequenceNumber;
+            $data['due_amount'] = ($this->due_amount + $oldTotal);
+            $data['base_due_amount'] = $data['due_amount'] * $data['exchange_rate'];
+            $data['customer_sequence_number'] = $serial->nextCustomerSequenceNumber;
 
-        $this->update($data);
+            $this->update($data);
 
-        $statusData = $this->getInvoiceStatusByAmount($data['due_amount']);
-        if (! empty($statusData)) {
-            $this->update($statusData);
-        }
+            $statusData = $this->getInvoiceStatusByAmount($data['due_amount']);
+            if (! empty($statusData)) {
+                $this->update($statusData);
+            }
 
-        $company_currency = CompanySetting::getSetting('currency', $request->header('company'));
+            $company_currency = CompanySetting::getSetting('currency', $request->header('company'));
 
-        if ((string) $data['currency_id'] !== $company_currency) {
-            ExchangeRateLog::addExchangeRateLog($this);
-        }
+            if ((string) $data['currency_id'] !== $company_currency) {
+                ExchangeRateLog::addExchangeRateLog($this);
+            }
 
-        $this->items->map(function ($item) {
-            $fields = $item->fields()->get();
+            $this->items->map(function ($item) {
+                $fields = $item->fields()->get();
 
-            $fields->map(function ($field) {
-                $field->delete();
+                $fields->map(function ($field) {
+                    $field->delete();
+                });
             });
+
+            $this->items()->delete();
+            $this->taxes()->delete();
+
+            self::createItems($this, $request->items);
+
+            if ($request->has('taxes') && (! empty($request->taxes))) {
+                self::createTaxes($this, $request->taxes);
+            }
+
+            if ($request->customFields) {
+                $this->updateCustomFields($request->customFields);
+            }
+
+            $invoice = Invoice::with([
+                'items',
+                'items.fields',
+                'items.fields.customField',
+                'customer',
+                'taxes',
+            ])
+                ->find($this->id);
+
+            return $invoice;
         });
-
-        $this->items()->delete();
-        $this->taxes()->delete();
-
-        self::createItems($this, $request->items);
-
-        if ($request->has('taxes') && (! empty($request->taxes))) {
-            self::createTaxes($this, $request->taxes);
-        }
-
-        if ($request->customFields) {
-            $this->updateCustomFields($request->customFields);
-        }
-
-        $invoice = Invoice::with([
-            'items',
-            'items.fields',
-            'items.fields.customField',
-            'customer',
-            'taxes',
-        ])
-            ->find($this->id);
-
-        return $invoice;
     }
 
     public function sendInvoiceData($data)

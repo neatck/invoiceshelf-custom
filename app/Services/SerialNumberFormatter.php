@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\CompanySetting;
 use App\Models\Customer;
+use Carbon\Carbon;
 
 /**
  * SerialNumberFormatter
@@ -136,6 +137,7 @@ class SerialNumberFormatter
         $last = $this->model::orderBy('sequence_number', 'desc')
             ->where('company_id', $companyId)
             ->where('sequence_number', '<>', null)
+            ->lockForUpdate()
             ->take(1)
             ->first();
 
@@ -155,6 +157,7 @@ class SerialNumberFormatter
             ->where('company_id', $this->company)
             ->where('customer_id', $customer_id)
             ->where('customer_sequence_number', '<>', null)
+            ->lockForUpdate()
             ->take(1)
             ->first();
 
@@ -214,7 +217,7 @@ class SerialNumberFormatter
                     break;
                 case 'DATE_FORMAT':
                     $value = $value ? $value : 'Y';
-                    $serialNumber .= date($value);
+                    $serialNumber .= Carbon::now()->format($value);
 
                     break;
                 case 'RANDOM_SEQUENCE':

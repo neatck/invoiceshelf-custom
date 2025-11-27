@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
@@ -26,6 +28,7 @@ class Estimate extends Model implements HasMedia
     use HasCustomFieldsTrait;
     use HasFactory;
     use InteractsWithMedia;
+    use SoftDeletes;
 
     public const STATUS_DRAFT = 'DRAFT';
 
@@ -218,95 +221,99 @@ class Estimate extends Model implements HasMedia
 
     public static function createEstimate($request)
     {
-        $data = $request->getEstimatePayload();
+        return DB::transaction(function () use ($request) {
+            $data = $request->getEstimatePayload();
 
-        if ($request->has('estimateSend')) {
-            $data['status'] = self::STATUS_SENT;
-        }
+            if ($request->has('estimateSend')) {
+                $data['status'] = self::STATUS_SENT;
+            }
 
-        $estimate = self::create($data);
-        $estimate->unique_hash = Hashids::connection(Estimate::class)->encode($estimate->id);
-        $serial = (new SerialNumberFormatter)
-            ->setModel($estimate)
-            ->setCompany($estimate->company_id)
-            ->setCustomer($estimate->customer_id)
-            ->setNextNumbers();
+            $estimate = self::create($data);
+            $estimate->unique_hash = Hashids::connection(Estimate::class)->encode($estimate->id);
+            $serial = (new SerialNumberFormatter)
+                ->setModel($estimate)
+                ->setCompany($estimate->company_id)
+                ->setCustomer($estimate->customer_id)
+                ->setNextNumbers();
 
-        $estimate->sequence_number = $serial->nextSequenceNumber;
-        $estimate->customer_sequence_number = $serial->nextCustomerSequenceNumber;
-        $estimate->save();
+            $estimate->sequence_number = $serial->nextSequenceNumber;
+            $estimate->customer_sequence_number = $serial->nextCustomerSequenceNumber;
+            $estimate->save();
 
-        $company_currency = CompanySetting::getSetting('currency', $request->header('company'));
+            $company_currency = CompanySetting::getSetting('currency', $request->header('company'));
 
-        if ((string) $data['currency_id'] !== $company_currency) {
-            ExchangeRateLog::addExchangeRateLog($estimate);
-        }
+            if ((string) $data['currency_id'] !== $company_currency) {
+                ExchangeRateLog::addExchangeRateLog($estimate);
+            }
 
-        self::createItems($estimate, $request, $estimate->exchange_rate);
+            self::createItems($estimate, $request, $estimate->exchange_rate);
 
-        if ($request->has('taxes') && (! empty($request->taxes))) {
-            self::createTaxes($estimate, $request, $estimate->exchange_rate);
-        }
+            if ($request->has('taxes') && (! empty($request->taxes))) {
+                self::createTaxes($estimate, $request, $estimate->exchange_rate);
+            }
 
-        $customFields = $request->customFields;
+            $customFields = $request->customFields;
 
-        if ($customFields) {
-            $estimate->addCustomFields($customFields);
-        }
+            if ($customFields) {
+                $estimate->addCustomFields($customFields);
+            }
 
-        return $estimate;
+            return $estimate;
+        });
     }
 
     public function updateEstimate($request)
     {
-        $data = $request->getEstimatePayload();
+        return DB::transaction(function () use ($request) {
+            $data = $request->getEstimatePayload();
 
-        $serial = (new SerialNumberFormatter)
-            ->setModel($this)
-            ->setCompany($this->company_id)
-            ->setCustomer($request->customer_id)
-            ->setModelObject($this->id)
-            ->setNextNumbers();
+            $serial = (new SerialNumberFormatter)
+                ->setModel($this)
+                ->setCompany($this->company_id)
+                ->setCustomer($request->customer_id)
+                ->setModelObject($this->id)
+                ->setNextNumbers();
 
-        $data['customer_sequence_number'] = $serial->nextCustomerSequenceNumber;
+            $data['customer_sequence_number'] = $serial->nextCustomerSequenceNumber;
 
-        $this->update($data);
+            $this->update($data);
 
-        $company_currency = CompanySetting::getSetting('currency', $request->header('company'));
+            $company_currency = CompanySetting::getSetting('currency', $request->header('company'));
 
-        if ((string) $data['currency_id'] !== $company_currency) {
-            ExchangeRateLog::addExchangeRateLog($this);
-        }
+            if ((string) $data['currency_id'] !== $company_currency) {
+                ExchangeRateLog::addExchangeRateLog($this);
+            }
 
-        $this->items->map(function ($item) {
-            $fields = $item->fields()->get();
+            $this->items->map(function ($item) {
+                $fields = $item->fields()->get();
 
-            $fields->map(function ($field) {
-                $field->delete();
+                $fields->map(function ($field) {
+                    $field->delete();
+                });
             });
+
+            $this->items()->delete();
+            $this->taxes()->delete();
+
+            self::createItems($this, $request, $this->exchange_rate);
+
+            if ($request->has('taxes') && (! empty($request->taxes))) {
+                self::createTaxes($this, $request, $this->exchange_rate);
+            }
+
+            if ($request->customFields) {
+                $this->updateCustomFields($request->customFields);
+            }
+
+            return Estimate::with([
+                'items.taxes',
+                'items.fields',
+                'items.fields.customField',
+                'customer',
+                'taxes',
+            ])
+                ->find($this->id);
         });
-
-        $this->items()->delete();
-        $this->taxes()->delete();
-
-        self::createItems($this, $request, $this->exchange_rate);
-
-        if ($request->has('taxes') && (! empty($request->taxes))) {
-            self::createTaxes($this, $request, $this->exchange_rate);
-        }
-
-        if ($request->customFields) {
-            $this->updateCustomFields($request->customFields);
-        }
-
-        return Estimate::with([
-            'items.taxes',
-            'items.fields',
-            'items.fields.customField',
-            'customer',
-            'taxes',
-        ])
-            ->find($this->id);
     }
 
     public static function createItems($estimate, $request, $exchange_rate)

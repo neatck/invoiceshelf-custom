@@ -7,6 +7,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
@@ -16,6 +17,7 @@ class Expense extends Model implements HasMedia
     use HasCustomFieldsTrait;
     use HasFactory;
     use InteractsWithMedia;
+    use SoftDeletes;
 
     protected $dates = [
         'expense_date',
@@ -235,49 +237,53 @@ class Expense extends Model implements HasMedia
 
     public static function createExpense($request)
     {
-        $expense = self::create($request->getExpensePayload());
+        return DB::transaction(function () use ($request) {
+            $expense = self::create($request->getExpensePayload());
 
-        $company_currency = CompanySetting::getSetting('currency', $request->header('company'));
+            $company_currency = CompanySetting::getSetting('currency', $request->header('company'));
 
-        if ((string) $expense['currency_id'] !== $company_currency) {
-            ExchangeRateLog::addExchangeRateLog($expense);
-        }
+            if ((string) $expense['currency_id'] !== $company_currency) {
+                ExchangeRateLog::addExchangeRateLog($expense);
+            }
 
-        if ($request->hasFile('attachment_receipt')) {
-            $expense->addMediaFromRequest('attachment_receipt')->toMediaCollection('receipts');
-        }
+            if ($request->hasFile('attachment_receipt')) {
+                $expense->addMediaFromRequest('attachment_receipt')->toMediaCollection('receipts');
+            }
 
-        if ($request->customFields) {
-            $expense->addCustomFields(json_decode($request->customFields));
-        }
+            if ($request->customFields) {
+                $expense->addCustomFields(json_decode($request->customFields));
+            }
 
-        return $expense;
+            return $expense;
+        });
     }
 
     public function updateExpense($request)
     {
-        $data = $request->getExpensePayload();
+        return DB::transaction(function () use ($request) {
+            $data = $request->getExpensePayload();
 
-        $this->update($data);
+            $this->update($data);
 
-        $company_currency = CompanySetting::getSetting('currency', $request->header('company'));
+            $company_currency = CompanySetting::getSetting('currency', $request->header('company'));
 
-        if ((string) $data['currency_id'] !== $company_currency) {
-            ExchangeRateLog::addExchangeRateLog($this);
-        }
+            if ((string) $data['currency_id'] !== $company_currency) {
+                ExchangeRateLog::addExchangeRateLog($this);
+            }
 
-        if (isset($request->is_attachment_receipt_removed) && (bool) $request->is_attachment_receipt_removed) {
-            $this->clearMediaCollection('receipts');
-        }
-        if ($request->hasFile('attachment_receipt')) {
-            $this->clearMediaCollection('receipts');
-            $this->addMediaFromRequest('attachment_receipt')->toMediaCollection('receipts');
-        }
+            if (isset($request->is_attachment_receipt_removed) && (bool) $request->is_attachment_receipt_removed) {
+                $this->clearMediaCollection('receipts');
+            }
+            if ($request->hasFile('attachment_receipt')) {
+                $this->clearMediaCollection('receipts');
+                $this->addMediaFromRequest('attachment_receipt')->toMediaCollection('receipts');
+            }
 
-        if ($request->customFields) {
-            $this->updateCustomFields(json_decode($request->customFields));
-        }
+            if ($request->customFields) {
+                $this->updateCustomFields(json_decode($request->customFields));
+            }
 
-        return true;
+            return true;
+        });
     }
 }
