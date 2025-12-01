@@ -53,6 +53,15 @@ class CustomersController extends Controller
 
         $customer = Customer::createCustomer($request);
 
+        // Handle duplicate entry errors
+        if (is_array($customer) && isset($customer['error'])) {
+            return response()->json([
+                'success' => false,
+                'error' => $customer['error'],
+                'message' => $customer['message'],
+            ], 422);
+        }
+
         return new CustomerResource($customer);
     }
 

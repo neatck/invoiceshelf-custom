@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Log;
 use Vinkla\Hashids\Facades\Hashids;
 
 class Appointment extends Model
@@ -19,8 +20,17 @@ class Appointment extends Model
     {
         static::created(function (self $appointment) {
             if (! $appointment->unique_hash) {
-                $appointment->unique_hash = Hashids::connection(self::class)->encode($appointment->id);
-                $appointment->saveQuietly();
+                try {
+                    $appointment->unique_hash = Hashids::connection(self::class)->encode($appointment->id);
+                    $appointment->saveQuietly();
+                } catch (\Throwable $e) {
+                    // Log the error but don't fail the appointment creation
+                    // The unique_hash can be regenerated later if needed
+                    Log::error('Failed to generate unique_hash for appointment', [
+                        'appointment_id' => $appointment->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
         });
     }
@@ -151,6 +161,49 @@ class Appointment extends Model
     public function markReminderSent()
     {
         $this->update(['reminder_sent_at' => now()]);
+    }
+
+    /**
+     * Regenerate unique_hash if missing.
+     * This can be called for maintenance purposes.
+     */
+    public function ensureUniqueHash(): bool
+    {
+        if ($this->unique_hash) {
+            return true;
+        }
+
+        try {
+            $this->unique_hash = Hashids::connection(self::class)->encode($this->id);
+            return $this->saveQuietly();
+        } catch (\Throwable $e) {
+            Log::error('Failed to regenerate unique_hash for appointment', [
+                'appointment_id' => $this->id,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Regenerate all missing unique_hash values.
+     * Useful for maintenance after issues.
+     */
+    public static function regenerateMissingHashes(): array
+    {
+        $results = ['success' => 0, 'failed' => 0];
+        
+        self::whereNull('unique_hash')->orWhere('unique_hash', '')->chunk(100, function ($appointments) use (&$results) {
+            foreach ($appointments as $appointment) {
+                if ($appointment->ensureUniqueHash()) {
+                    $results['success']++;
+                } else {
+                    $results['failed']++;
+                }
+            }
+        });
+        
+        return $results;
     }
 
     public function canBeModified()

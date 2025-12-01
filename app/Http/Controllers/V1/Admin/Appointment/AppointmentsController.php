@@ -7,7 +7,9 @@ use App\Http\Requests\AppointmentRequest;
 use App\Http\Resources\AppointmentResource;
 use App\Models\Appointment;
 use App\Models\Customer;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AppointmentsController extends Controller
 {
@@ -31,14 +33,53 @@ class AppointmentsController extends Controller
 
     /**
      * Store a newly created appointment.
+     * Uses database transaction and locking to prevent double-booking.
      */
     public function store(AppointmentRequest $request)
     {
         $this->authorize('create', Appointment::class);
 
-        $appointment = Appointment::create($request->validated());
+        $validated = $request->validated();
+        $appointmentDate = Carbon::parse($validated['appointment_date']);
+        $durationMinutes = $validated['duration_minutes'];
+        $companyId = $validated['company_id'];
 
-        return new AppointmentResource($appointment->load(['customer', 'creator']));
+        return DB::transaction(function () use ($validated, $appointmentDate, $durationMinutes, $companyId) {
+            // Lock existing appointments for this company on the same date to prevent race conditions
+            $existingAppointments = Appointment::where('company_id', $companyId)
+                ->whereDate('appointment_date', $appointmentDate->toDateString())
+                ->whereNotIn('status', ['cancelled'])
+                ->lockForUpdate()
+                ->get();
+
+            // Calculate the proposed appointment's time window
+            $proposedStart = $appointmentDate;
+            $proposedEnd = $appointmentDate->copy()->addMinutes($durationMinutes);
+
+            // Check for overlapping appointments
+            foreach ($existingAppointments as $existing) {
+                $existingStart = $existing->appointment_date;
+                $existingEnd = $existingStart->copy()->addMinutes($existing->duration_minutes);
+
+                // Check if the proposed appointment overlaps with an existing one
+                if ($proposedStart->lt($existingEnd) && $proposedEnd->gt($existingStart)) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'appointment_overlap',
+                        'message' => 'This time slot is no longer available. Another appointment was booked for this time. Please select a different time.',
+                        'conflicting_appointment' => [
+                            'start' => $existingStart->format('h:i A'),
+                            'end' => $existingEnd->format('h:i A'),
+                        ],
+                    ], 422);
+                }
+            }
+
+            // No overlap found, safe to create
+            $appointment = Appointment::create($validated);
+
+            return new AppointmentResource($appointment->load(['customer', 'creator']));
+        });
     }
 
     /**
@@ -53,14 +94,55 @@ class AppointmentsController extends Controller
 
     /**
      * Update the specified appointment.
+     * Uses database transaction and locking to prevent double-booking.
      */
     public function update(AppointmentRequest $request, Appointment $appointment)
     {
         $this->authorize('update', $appointment);
 
-        $appointment->update($request->validated());
+        $validated = $request->validated();
+        $appointmentDate = Carbon::parse($validated['appointment_date']);
+        $durationMinutes = $validated['duration_minutes'];
+        $companyId = $validated['company_id'];
+        $appointmentId = $appointment->id;
 
-        return new AppointmentResource($appointment->load(['customer', 'creator']));
+        return DB::transaction(function () use ($validated, $appointmentDate, $durationMinutes, $companyId, $appointmentId, $appointment) {
+            // Lock existing appointments for this company on the same date (excluding current appointment)
+            $existingAppointments = Appointment::where('company_id', $companyId)
+                ->whereDate('appointment_date', $appointmentDate->toDateString())
+                ->whereNotIn('status', ['cancelled'])
+                ->where('id', '!=', $appointmentId)
+                ->lockForUpdate()
+                ->get();
+
+            // Calculate the proposed appointment's time window
+            $proposedStart = $appointmentDate;
+            $proposedEnd = $appointmentDate->copy()->addMinutes($durationMinutes);
+
+            // Check for overlapping appointments
+            foreach ($existingAppointments as $existing) {
+                $existingStart = $existing->appointment_date;
+                $existingEnd = $existingStart->copy()->addMinutes($existing->duration_minutes);
+
+                // Check if the proposed appointment overlaps with an existing one
+                if ($proposedStart->lt($existingEnd) && $proposedEnd->gt($existingStart)) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'appointment_overlap',
+                        'message' => 'This time slot is no longer available. Another appointment exists at this time. Please select a different time.',
+                        'conflicting_appointment' => [
+                            'start' => $existingStart->format('h:i A'),
+                            'end' => $existingEnd->format('h:i A'),
+                        ],
+                    ], 422);
+                }
+            }
+
+            // No overlap found, safe to update
+            $appointment->update($validated);
+
+            return new AppointmentResource($appointment->load(['customer', 'creator']));
+        });
     }
 
     /**

@@ -204,31 +204,44 @@ class Customer extends Authenticatable implements HasMedia
 
     public static function createCustomer($request)
     {
-        return DB::transaction(function () use ($request) {
-            $customer = Customer::create($request->getCustomerPayload());
+        try {
+            return DB::transaction(function () use ($request) {
+                $customer = Customer::create($request->getCustomerPayload());
 
-            if ($request->shipping) {
-                if ($request->hasAddress($request->shipping)) {
-                    $customer->addresses()->create($request->getShippingAddress());
+                if ($request->shipping) {
+                    if ($request->hasAddress($request->shipping)) {
+                        $customer->addresses()->create($request->getShippingAddress());
+                    }
                 }
-            }
 
-            if ($request->billing) {
-                if ($request->hasAddress($request->billing)) {
-                    $customer->addresses()->create($request->getBillingAddress());
+                if ($request->billing) {
+                    if ($request->hasAddress($request->billing)) {
+                        $customer->addresses()->create($request->getBillingAddress());
+                    }
                 }
+
+                $customFields = $request->customFields;
+
+                if ($customFields) {
+                    $customer->addCustomFields($customFields);
+                }
+
+                $customer = Customer::with('billingAddress', 'shippingAddress', 'fields')->find($customer->id);
+
+                return $customer;
+            });
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Error code 1062 is for duplicate entry (MySQL) or 19 for UNIQUE constraint failed (SQLite)
+            if (isset($e->errorInfo[1]) && ($e->errorInfo[1] == 1062 || $e->errorInfo[1] == 19)) {
+                // Extract which field caused the duplicate
+                $message = $e->getMessage();
+                if (stripos($message, 'email') !== false) {
+                    return ['error' => 'duplicate_email', 'message' => 'A customer with this email already exists.'];
+                }
+                return ['error' => 'duplicate_entry', 'message' => 'A customer with these details already exists.'];
             }
-
-            $customFields = $request->customFields;
-
-            if ($customFields) {
-                $customer->addCustomFields($customFields);
-            }
-
-            $customer = Customer::with('billingAddress', 'shippingAddress', 'fields')->find($customer->id);
-
-            return $customer;
-        });
+            throw $e;
+        }
     }
 
     public static function updateCustomer($request, $customer)

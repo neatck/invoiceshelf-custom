@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 use Vinkla\Hashids\Facades\Hashids;
 
 class RecurringInvoice extends Model
@@ -197,52 +198,56 @@ class RecurringInvoice extends Model
 
     public static function createFromRequest(RecurringInvoiceRequest $request)
     {
-        $recurringInvoice = self::create($request->getRecurringInvoicePayload());
+        return DB::transaction(function () use ($request) {
+            $recurringInvoice = self::create($request->getRecurringInvoicePayload());
 
-        $company_currency = CompanySetting::getSetting('currency', $request->header('company'));
+            $company_currency = CompanySetting::getSetting('currency', $request->header('company'));
 
-        if ((string) $recurringInvoice['currency_id'] !== $company_currency) {
-            ExchangeRateLog::addExchangeRateLog($recurringInvoice);
-        }
+            if ((string) $recurringInvoice['currency_id'] !== $company_currency) {
+                ExchangeRateLog::addExchangeRateLog($recurringInvoice);
+            }
 
-        self::createItems($recurringInvoice, $request->items);
+            self::createItems($recurringInvoice, $request->items);
 
-        if ($request->has('taxes') && (! empty($request->taxes))) {
-            self::createTaxes($recurringInvoice, $request->taxes);
-        }
+            if ($request->has('taxes') && (! empty($request->taxes))) {
+                self::createTaxes($recurringInvoice, $request->taxes);
+            }
 
-        if ($request->customFields) {
-            $recurringInvoice->addCustomFields($request->customFields);
-        }
+            if ($request->customFields) {
+                $recurringInvoice->addCustomFields($request->customFields);
+            }
 
-        return $recurringInvoice;
+            return $recurringInvoice;
+        });
     }
 
     public function updateFromRequest(RecurringInvoiceRequest $request)
     {
-        $data = $request->getRecurringInvoicePayload();
+        return DB::transaction(function () use ($request) {
+            $data = $request->getRecurringInvoicePayload();
 
-        $this->update($data);
+            $this->update($data);
 
-        $company_currency = CompanySetting::getSetting('currency', $request->header('company'));
+            $company_currency = CompanySetting::getSetting('currency', $request->header('company'));
 
-        if ((string) $data['currency_id'] !== $company_currency) {
-            ExchangeRateLog::addExchangeRateLog($this);
-        }
+            if ((string) $data['currency_id'] !== $company_currency) {
+                ExchangeRateLog::addExchangeRateLog($this);
+            }
 
-        $this->items()->delete();
-        self::createItems($this, $request->items);
+            $this->items()->delete();
+            self::createItems($this, $request->items);
 
-        $this->taxes()->delete();
-        if ($request->has('taxes') && (! empty($request->taxes))) {
-            self::createTaxes($this, $request->taxes);
-        }
+            $this->taxes()->delete();
+            if ($request->has('taxes') && (! empty($request->taxes))) {
+                self::createTaxes($this, $request->taxes);
+            }
 
-        if ($request->customFields) {
-            $this->updateCustomFields($request->customFields);
-        }
+            if ($request->customFields) {
+                $this->updateCustomFields($request->customFields);
+            }
 
-        return $this;
+            return $this;
+        });
     }
 
     public static function createItems($recurringInvoice, $invoiceItems)
