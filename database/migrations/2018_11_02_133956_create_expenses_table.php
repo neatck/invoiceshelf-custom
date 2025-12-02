@@ -21,6 +21,7 @@ return new class extends Migration
             $table->foreign('expense_category_id')->references('id')->on('expense_categories')->onDelete('cascade');
             $table->integer('company_id')->unsigned()->nullable();
             $table->foreign('company_id')->references('id')->on('companies')->onDelete('cascade');
+            $table->softDeletes();
             $table->timestamps();
         });
     }

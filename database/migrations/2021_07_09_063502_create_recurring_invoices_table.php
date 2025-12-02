@@ -41,6 +41,7 @@ return new class extends Migration
             $table->unsignedBigInteger('tax');
             $table->string('template_name')->nullable();
             $table->unsignedBigInteger('due_amount');
+            $table->softDeletes();
             $table->timestamps();
         });
     }

@@ -26,6 +26,7 @@ return new class extends Migration
             $table->foreign('company_id')->references('id')->on('companies')->onDelete('cascade');
             $table->integer('payment_method_id')->unsigned()->nullable();
             $table->foreign('payment_method_id')->references('id')->on('payment_methods')->onDelete('cascade');
+            $table->softDeletes();
             $table->timestamps();
         });
     }

@@ -31,6 +31,7 @@ return new class extends Migration
             $table->foreign('company_id')->references('id')->on('companies');
             $table->unsignedInteger('creator_id')->nullable();
             $table->foreign('creator_id')->references('id')->on('users');
+            $table->softDeletes();
             $table->timestamps();
         });
     }
