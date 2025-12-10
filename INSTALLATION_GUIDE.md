@@ -366,6 +366,14 @@ Add this line:
 * * * * * cd /var/www/invoiceshelf && php artisan schedule:run >> /dev/null 2>&1
 ```
 
+### Configure S3 Cloud Backups (Recommended)
+
+For automatic cloud backups, configure an S3 disk after completing the wizard:
+
+1. Go to **Settings** → **File Disk** → **Add Disk**
+2. Select **Amazon S3** and enter your AWS credentials
+3. Backups will automatically run 5 times daily (see "Automatic S3 Cloud Backups" section below)
+
 ### Configure Firewall (if enabled)
 
 ```bash
@@ -541,3 +549,111 @@ sudo systemctl restart php8.2-fpm nginx
    - Your password hash is preserved, use your old password
    - If forgotten, reset via: `php artisan tinker` then update user password
 
+---
+
+## Automatic S3 Cloud Backups
+
+InvoiceShelf Custom includes automatic database backups to AWS S3. Once configured, backups run **5 times daily** between 2 PM and 10 PM (in your company timezone):
+
+| Time | Purpose |
+|------|---------|
+| 2:00 PM | Early afternoon checkpoint |
+| 5:00 PM | Late afternoon checkpoint |
+| 7:30 PM | Pre-closing (captures most of day's work) |
+| 8:00 PM | At closing time |
+| 9:30 PM | Post-closing safety backup |
+
+### How to Enable Automatic S3 Backups
+
+**Step 1: Configure S3 Disk in InvoiceShelf**
+
+1. Log in as admin
+2. Go to **Settings** → **File Disk**
+3. Click **Add Disk**
+4. Select **Amazon S3** as driver
+5. Enter your AWS credentials:
+   - **Key**: Your AWS Access Key ID
+   - **Secret**: Your AWS Secret Access Key
+   - **Region**: e.g., `eu-central-1`, `us-east-1`
+   - **Bucket**: Your S3 bucket name
+   - **Root**: `/` (or a subfolder like `/backups`)
+6. Save the disk
+
+**Step 2: Ensure Cron Job is Running**
+
+The scheduler must be running for automatic backups. Add to crontab if not already done:
+
+```bash
+# For development/home setup (user crontab)
+crontab -e
+# Add: * * * * * cd /home/youruser/invoiceshelf-custom && php artisan schedule:run >> /dev/null 2>&1
+
+# For production (www-data crontab)
+sudo crontab -u www-data -e
+# Add: * * * * * cd /var/www/invoiceshelf && php artisan schedule:run >> /dev/null 2>&1
+```
+
+**Step 3: Verify Scheduled Backups**
+
+```bash
+cd /var/www/invoiceshelf
+php artisan schedule:list
+```
+
+You should see 5 `backup:s3-scheduled` entries if S3 disk is configured.
+
+### Manual S3 Backup
+
+To trigger a backup manually:
+
+```bash
+php artisan backup:s3-scheduled
+```
+
+With verbose output:
+```bash
+php artisan backup:s3-scheduled -v
+```
+
+### How It Works
+
+- **Automatic Detection**: Backups only schedule if an S3 disk exists in the database
+- **Internet Check**: Each backup checks for internet connectivity before attempting upload
+- **Database Only**: Scheduled backups are database-only (smaller, faster)
+- **Timezone Aware**: Uses your company timezone setting
+- **No Overlap**: Won't start a new backup if one is still running
+
+### AWS S3 Setup Tips
+
+1. **Create a dedicated S3 bucket** for InvoiceShelf backups
+2. **Create an IAM user** with only S3 permissions for this bucket
+3. **Enable versioning** on the bucket for extra safety
+4. **Set lifecycle rules** to move old backups to Glacier after 30 days
+
+Example IAM policy:
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:DeleteObject",
+                "s3:ListBucket"
+            ],
+            "Resource": [
+                "arn:aws:s3:::your-bucket-name",
+                "arn:aws:s3:::your-bucket-name/*"
+            ]
+        }
+    ]
+}
+```
+
+### Viewing Backups
+
+All automatic backups appear in **Settings** → **Backup** in the InvoiceShelf UI, alongside any manual backups.
+
+---
